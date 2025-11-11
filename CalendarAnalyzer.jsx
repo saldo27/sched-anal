@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 const CalendarAnalyzer = () => {
   const [calendarText, setCalendarText] = useState('');
   const [startDate, setStartDate] = useState('2025-12-22');
-  const [nameMapping, setNameMapping] = useState('REQUE=LUIS R\nROBER=ROBERTO\nAGUE=AGUEDA\nLUIS H=LUIS H');
+  const [nameMapping, setNameMapping] = useState('luis h=LUIS H\nluish=LUIS H\nreque=LUIS R\nrobert=ROBERTO\nagueda=AGUEDA');
   const [sortBy, setSortBy] = useState('total');
   const [view, setView] = useState('general');
   const [showAnalysis, setShowAnalysis] = useState(false);
@@ -14,15 +14,20 @@ const CalendarAnalyzer = () => {
   const [fileName, setFileName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Función para limpiar y normalizar nombres
-  const normalizeWorkerName = (name, nameMap) => {
+  // Función para limpiar y normalizar nombres (case-insensitive)
+  const normalizeWorkerName = (name, nameMap, nameMapUpper) => {
     if (!name) return null;
     
     const trimmed = name.trim();
-    // Si está en el mapeo, usar el mapeo
+    const upper = trimmed.toUpperCase();
+    
+    // Búsqueda exact case-sensitive primero
     if (nameMap[trimmed]) return nameMap[trimmed];
     
-    // Buscar en el mapeo por aproximación (para nombres parciales)
+    // Búsqueda case-insensitive
+    if (nameMapUpper[upper]) return nameMapUpper[upper];
+    
+    // Buscar en el mapeo por aproximación
     for (const [key, value] of Object.entries(nameMap)) {
       if (trimmed.includes(key) || key.includes(trimmed)) {
         return value;
@@ -33,32 +38,40 @@ const CalendarAnalyzer = () => {
   };
 
   // Función mejorada para parsear nombres de trabajadores
-  const parseWorkerNames = (rowText, dayCount, nameMap) => {
+  const parseWorkerNames = (rowText, dayCount, nameMap, nameMapUpper) => {
     // Intenta separar los nombres basándose en el número de días
     const words = rowText.trim().split(/\s+/);
     const workers = [];
     
     // Si tenemos exactamente el número correcto de palabras, es simple
     if (words.length === dayCount) {
-      return words.map(w => normalizeWorkerName(w, nameMap));
+      return words.map(w => normalizeWorkerName(w, nameMap, nameMapUpper));
     }
     
     // Si tenemos más palabras, intentar agrupar nombres compuestos
-    // Usar la longitud promedio esperada
     let wordIndex = 0;
     for (let i = 0; i < dayCount && wordIndex < words.length; i++) {
       let currentName = words[wordIndex];
       wordIndex++;
       
       // Intentar combinar palabras si la siguiente es corta (apellido o inicial)
+      // y no está en el mapeo como palabra individual
       while (wordIndex < words.length && 
-             words[wordIndex].length <= 2 && 
-             !normalizeWorkerName(words[wordIndex], nameMap)) {
-        currentName += ' ' + words[wordIndex];
-        wordIndex++;
+             words[wordIndex].length <= 2) {
+        const testName = currentName + ' ' + words[wordIndex];
+        const normalized = normalizeWorkerName(testName, nameMap, nameMapUpper);
+        
+        // Si la combinación se mapea o la palabra siguiente es una inicial típica
+        if (nameMap[testName] || nameMapUpper[testName.toUpperCase()] || 
+            /^[A-Z]$/i.test(words[wordIndex])) {
+          currentName = testName;
+          wordIndex++;
+        } else {
+          break;
+        }
       }
       
-      workers.push(normalizeWorkerName(currentName, nameMap));
+      workers.push(normalizeWorkerName(currentName, nameMap, nameMapUpper));
     }
     
     return workers.filter(w => w);
@@ -67,11 +80,16 @@ const CalendarAnalyzer = () => {
   const parseCalendar = (text, startDateStr, mappings) => {
     try {
       setError('');
-      // Crear mapeo de nombres
+      // Crear mapeo de nombres (case-sensitive y case-insensitive)
       const nameMap = {};
+      const nameMapUpper = {}; // Para búsqueda case-insensitive
+      
       mappings.split('\n').forEach(line => {
         const [from, to] = line.split('=').map(s => s.trim());
-        if (from && to) nameMap[from] = to;
+        if (from && to) {
+          nameMap[from] = to;
+          nameMapUpper[from.toUpperCase()] = to;
+        }
       });
 
       // Parsear el texto del calendario
@@ -85,10 +103,10 @@ const CalendarAnalyzer = () => {
         const dayCount = daysLine.length;
         
         // Usar la función mejorada para parsear nombres
-        const row1 = parseWorkerNames(lines[i + 1] || '', dayCount, nameMap);
-        const row2 = parseWorkerNames(lines[i + 2] || '', dayCount, nameMap);
-        const row3 = parseWorkerNames(lines[i + 3] || '', dayCount, nameMap);
-        const row4 = parseWorkerNames(lines[i + 4] || '', dayCount, nameMap);
+        const row1 = parseWorkerNames(lines[i + 1] || '', dayCount, nameMap, nameMapUpper);
+        const row2 = parseWorkerNames(lines[i + 2] || '', dayCount, nameMap, nameMapUpper);
+        const row3 = parseWorkerNames(lines[i + 3] || '', dayCount, nameMap, nameMapUpper);
+        const row4 = parseWorkerNames(lines[i + 4] || '', dayCount, nameMap, nameMapUpper);
         
         for (let j = 0; j < daysLine.length; j++) {
           const day = parseInt(daysLine[j]);
