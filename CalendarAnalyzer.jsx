@@ -6,13 +6,63 @@ import * as XLSX from 'xlsx';
 const CalendarAnalyzer = () => {
   const [calendarText, setCalendarText] = useState('');
   const [startDate, setStartDate] = useState('2025-12-22');
-  const [nameMapping, setNameMapping] = useState('REQUE=LUIS R\nROBER=ROBERTO\nAGUE=AGUEDA');
+  const [nameMapping, setNameMapping] = useState('REQUE=LUIS R\nROBER=ROBERTO\nAGUE=AGUEDA\nLUIS H=LUIS H');
   const [sortBy, setSortBy] = useState('total');
   const [view, setView] = useState('general');
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [error, setError] = useState('');
   const [fileName, setFileName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Función para limpiar y normalizar nombres
+  const normalizeWorkerName = (name, nameMap) => {
+    if (!name) return null;
+    
+    const trimmed = name.trim();
+    // Si está en el mapeo, usar el mapeo
+    if (nameMap[trimmed]) return nameMap[trimmed];
+    
+    // Buscar en el mapeo por aproximación (para nombres parciales)
+    for (const [key, value] of Object.entries(nameMap)) {
+      if (trimmed.includes(key) || key.includes(trimmed)) {
+        return value;
+      }
+    }
+    
+    return trimmed;
+  };
+
+  // Función mejorada para parsear nombres de trabajadores
+  const parseWorkerNames = (rowText, dayCount, nameMap) => {
+    // Intenta separar los nombres basándose en el número de días
+    const words = rowText.trim().split(/\s+/);
+    const workers = [];
+    
+    // Si tenemos exactamente el número correcto de palabras, es simple
+    if (words.length === dayCount) {
+      return words.map(w => normalizeWorkerName(w, nameMap));
+    }
+    
+    // Si tenemos más palabras, intentar agrupar nombres compuestos
+    // Usar la longitud promedio esperada
+    let wordIndex = 0;
+    for (let i = 0; i < dayCount && wordIndex < words.length; i++) {
+      let currentName = words[wordIndex];
+      wordIndex++;
+      
+      // Intentar combinar palabras si la siguiente es corta (apellido o inicial)
+      while (wordIndex < words.length && 
+             words[wordIndex].length <= 2 && 
+             !normalizeWorkerName(words[wordIndex], nameMap)) {
+        currentName += ' ' + words[wordIndex];
+        wordIndex++;
+      }
+      
+      workers.push(normalizeWorkerName(currentName, nameMap));
+    }
+    
+    return workers.filter(w => w);
+  };
 
   const parseCalendar = (text, startDateStr, mappings) => {
     try {
@@ -32,10 +82,13 @@ const CalendarAnalyzer = () => {
       
       for (let i = 0; i < lines.length; i += 5) {
         const daysLine = lines[i].trim().split(/\s+/);
-        const row1 = lines[i + 1]?.trim().split(/\s+/) || [];
-        const row2 = lines[i + 2]?.trim().split(/\s+/) || [];
-        const row3 = lines[i + 3]?.trim().split(/\s+/) || [];
-        const row4 = lines[i + 4]?.trim().split(/\s+/) || [];
+        const dayCount = daysLine.length;
+        
+        // Usar la función mejorada para parsear nombres
+        const row1 = parseWorkerNames(lines[i + 1] || '', dayCount, nameMap);
+        const row2 = parseWorkerNames(lines[i + 2] || '', dayCount, nameMap);
+        const row3 = parseWorkerNames(lines[i + 3] || '', dayCount, nameMap);
+        const row4 = parseWorkerNames(lines[i + 4] || '', dayCount, nameMap);
         
         for (let j = 0; j < daysLine.length; j++) {
           const day = parseInt(daysLine[j]);
@@ -47,7 +100,7 @@ const CalendarAnalyzer = () => {
           
           const workers = [row1[j], row2[j], row3[j], row4[j]]
             .filter(w => w)
-            .map(w => nameMap[w] || w);
+            .map(w => w);
           
           calendarData.push({
             day: day,
