@@ -332,7 +332,7 @@ const CalendarAnalyzer = () => {
   };
 
   const handleExportCSV = () => {
-    let csv = 'Trabajador,Total,Viernes,Sábado,Domingo,% Fin de Semana,Última Posición\n';
+    let csv = 'Trabajador,Total,Viernes,Sábado,Domingo,% Fin de Semana,Rosell\n';
     sortedWorkers.forEach(worker => {
       csv += `"${worker.name}",${worker.total},${worker.friday},${worker.saturday},${worker.sunday},${worker.weekendPercentage},${worker.lastPosition}\n`;
     });
@@ -406,7 +406,7 @@ const CalendarAnalyzer = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `analisis_turnos_${new Date().toISOString().split('T')[0]}.pdf`;
+      a.download = `analisis_guardias_${new Date().toISOString().split('T')[0]}.pdf`;
       a.click();
       window.URL.revokeObjectURL(url);
       
@@ -617,7 +617,7 @@ const CalendarAnalyzer = () => {
             <p className="text-2xl font-bold text-indigo-900">{calendarData.length}</p>
           </div>
           <div className="bg-green-50 p-4 rounded-lg">
-            <p className="text-sm text-green-600 font-semibold">Trabajadores</p>
+            <p className="text-sm text-green-600 font-semibold">Médicos</p>
             <p className="text-2xl font-bold text-green-900">{Object.keys(analysis).length}</p>
           </div>
           <div className="bg-purple-50 p-4 rounded-lg">

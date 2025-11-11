@@ -176,7 +176,7 @@ def export_data():
         
         if export_format == 'csv':
             # Generate CSV
-            csv_content = 'Trabajador,Total,Viernes,Sábado,Domingo,% Fin de Semana,Última Posición\n'
+            csv_content = 'Trabajador,Total,Viernes,Sábado,Domingo,% Fin de Semana,Rosell\n'
             for worker in workers:
                 csv_content += f'"{worker["name"]}",{worker["total"]},{worker["friday"]},{worker["saturday"]},{worker["sunday"]},{worker["weekendPercentage"]},{worker["lastPosition"]}\n'
             
@@ -212,7 +212,7 @@ def export_data():
                 spaceAfter=6,
                 alignment=1  # Center
             )
-            story.append(Paragraph(f"Análisis de Turnos - {period}", title_style))
+            story.append(Paragraph(f"Análisis de Guardias - {period}", title_style))
             story.append(Paragraph(f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
             story.append(Spacer(1, 0.2*inch))
             
@@ -221,7 +221,7 @@ def export_data():
             story.append(Spacer(1, 0.1*inch))
             
             global_table_data = [
-                ['Trabajador', 'Total', 'Viernes', 'Sábado', 'Domingo', '% Fin de Semana', 'Últ. Pos.']
+                ['Trabajador', 'Total', 'Viernes', 'Sábado', 'Domingo', '% Fin de Semana', 'Rosell']
             ]
             for worker in workers:
                 global_table_data.append([
