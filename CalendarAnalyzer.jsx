@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Upload, FileText, Download, AlertCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import pdfParse from 'pdf-parse';
 
 const CalendarAnalyzer = () => {
   const [calendarText, setCalendarText] = useState('');
@@ -13,6 +12,7 @@ const CalendarAnalyzer = () => {
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [error, setError] = useState('');
   const [fileName, setFileName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const parseCalendar = (text, startDateStr, mappings) => {
     try {
@@ -75,16 +75,29 @@ const CalendarAnalyzer = () => {
     try {
       setError('');
       setFileName(file.name);
-      const arrayBuffer = await file.arrayBuffer();
+      setIsLoading(true);
       
-      // Usar pdf-parse para extraer texto
-      const pdf = await pdfParse(new Uint8Array(arrayBuffer));
-      const extractedText = pdf.text;
+      const formData = new FormData();
+      formData.append('file', file);
       
-      setCalendarText(extractedText);
+      // Usar el backend API para procesar el PDF
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al cargar el archivo');
+      }
+      
+      const data = await response.json();
+      setCalendarText(data.text);
+      setIsLoading(false);
     } catch (err) {
       setError(`Error al cargar PDF: ${err.message}`);
       setFileName('');
+      setIsLoading(false);
     }
   };
 
@@ -116,16 +129,25 @@ const CalendarAnalyzer = () => {
           ).join('\n');
           
           setCalendarText(formattedText);
+          setIsLoading(false);
         } catch (err) {
           setError(`Error al procesar Excel: ${err.message}`);
           setFileName('');
+          setIsLoading(false);
         }
+      };
+      
+      reader.onerror = () => {
+        setError('Error al leer el archivo');
+        setFileName('');
+        setIsLoading(false);
       };
       
       reader.readAsArrayBuffer(file);
     } catch (err) {
       setError(`Error al cargar archivo: ${err.message}`);
       setFileName('');
+      setIsLoading(false);
     }
   };
 
@@ -357,11 +379,11 @@ const CalendarAnalyzer = () => {
 
               <button
                 onClick={handleAnalyze}
-                disabled={!calendarText.trim()}
+                disabled={!calendarText.trim() || isLoading}
                 className="w-full bg-indigo-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
                 <Upload className="w-5 h-5" />
-                Analizar Calendario
+                {isLoading ? 'Cargando...' : 'Analizar Calendario'}
               </button>
             </div>
 
