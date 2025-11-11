@@ -372,7 +372,7 @@ const CalendarAnalyzer = () => {
         analysisPeriod: startDate ? new Date(startDate).toLocaleDateString('es-ES', { year: 'numeric', month: 'long' }) : 'Análisis de Turnos'
       };
 
-      const response = await fetch('http://localhost:5000/api/export', {
+      const response = await fetch('/api/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
