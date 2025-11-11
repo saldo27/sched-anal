@@ -195,11 +195,11 @@ def export_data():
             }), 200
         
         elif export_format == 'pdf':
-            # Generate PDF with global and monthly data - A4 Landscape
+            # Generate PDF with global and monthly data - A4 Portrait
             pdf_buffer = BytesIO()
             doc = SimpleDocTemplate(pdf_buffer, pagesize=A4, topMargin=0.5*inch, bottomMargin=0.5*inch, 
                                    leftMargin=0.5*inch, rightMargin=0.5*inch)
-            doc.pagesize = (A4[1], A4[0])  # Landscape orientation
+            # A4 Portrait is default (210 x 297 mm)
             story = []
             styles = getSampleStyleSheet()
             
@@ -287,8 +287,8 @@ def export_data():
                         row.append(str(monthly_total))
                         monthly_table_data.append(row)
                     
-                    # Adjust column widths for landscape
-                    col_width = 5.5 / (len(all_months) + 2)  # A4 landscape is ~7.5 inches, minus margins
+                    # Adjust column widths for portrait
+                    col_width = 3.5 / (len(all_months) + 2)  # A4 portrait is ~6.5 inches, minus margins
                     col_widths = [1.2*inch] + [col_width*inch] * len(all_months) + [0.6*inch]
                     
                     monthly_table = Table(monthly_table_data, colWidths=col_widths)
