@@ -293,14 +293,13 @@ def export_data():
             doc.build(story)
             pdf_buffer.seek(0)
             
-            # Return PDF as response
-            response = send_file(
+            # Return PDF as response with proper headers
+            return send_file(
                 pdf_buffer,
                 mimetype='application/pdf',
                 as_attachment=True,
-                attachment_filename=f'analisis_turnos_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+                download_name=f'analisis_turnos_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
             )
-            return response
         
         else:
             return jsonify({'error': f'Unsupported format: {export_format}'}), 400
