@@ -294,12 +294,17 @@ def export_data():
             pdf_buffer.seek(0)
             
             # Return PDF as response with proper headers
-            return send_file(
-                pdf_buffer,
+            pdf_data = pdf_buffer.getvalue()
+            
+            response = app.response_class(
+                response=pdf_data,
+                status=200,
                 mimetype='application/pdf',
-                as_attachment=True,
-                download_name=f'analisis_turnos_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+                headers={
+                    'Content-Disposition': f'attachment; filename=analisis_turnos_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+                }
             )
+            return response
         
         else:
             return jsonify({'error': f'Unsupported format: {export_format}'}), 400
