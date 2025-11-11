@@ -39,8 +39,8 @@ Se abrirá automáticamente: **http://localhost:3000**
 ## ¿Qué hace la app?
 
 1. **Cargar archivo**: PDF, Excel o ingresa el calendario manualmente
-2. **Análisis automático**: Genera estadísticas de turnos
-3. **Exportar resultados**: CSV o PDF (A4 apaisado)
+2. **Análisis automático**: Genera estadísticas de guardias
+3. **Exportar resultados**: CSV o PDF (A4 vertical)
 
 ---
 

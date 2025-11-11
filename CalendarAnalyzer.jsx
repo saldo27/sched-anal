@@ -46,7 +46,7 @@ const CalendarAnalyzer = () => {
     return /^[A-Za-z]\.?$|^[A-Za-z]{1,2}$/.test(word);
   };
 
-  // Función mejorada para parsear nombres de trabajadores
+  // Función mejorada para parsear nombres de médicos
   const parseWorkerNames = (rowText, dayCount, nameMap, nameMapUpper) => {
     const words = rowText.trim().split(/\s+/);
     const workers = [];
@@ -332,7 +332,7 @@ const CalendarAnalyzer = () => {
   };
 
   const handleExportCSV = () => {
-    let csv = 'Trabajador,Total,Viernes,Sábado,Domingo,% Fin de Semana,Rosell\n';
+  let csv = 'Médico,Total,Viernes,Sábado,Domingo,% Fin de Semana,Rosell\n';
     sortedWorkers.forEach(worker => {
       csv += `"${worker.name}",${worker.total},${worker.friday},${worker.saturday},${worker.sunday},${worker.weekendPercentage},${worker.lastPosition}\n`;
     });
@@ -341,7 +341,7 @@ const CalendarAnalyzer = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `analisis_turnos_${new Date().toISOString().split('T')[0]}.csv`;
+  a.download = `analisis_guardias_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -371,7 +371,7 @@ const CalendarAnalyzer = () => {
         workers: sortedWorkers,
         monthlyData: monthlyForPDF,
         format: 'pdf',
-        analysisPeriod: startDate ? new Date(startDate).toLocaleDateString('es-ES', { year: 'numeric', month: 'long' }) : 'Análisis de Turnos'
+        analysisPeriod: startDate ? new Date(startDate).toLocaleDateString('es-ES', { year: 'numeric', month: 'long' }) : 'Análisis de Guardias'
       };
 
       console.log('PDF payload:', payload);
@@ -433,7 +433,7 @@ const CalendarAnalyzer = () => {
     { key: 'Nov', value: 'november' }
   ];
 
-  // Calcular qué meses tienen turnos reales (suma > 0)
+  // Calcular qué meses tienen guardias reales (suma > 0)
   const monthsWithShifts = allMonths.filter(month => {
     const total = sortedWorkers.reduce((sum, worker) => sum + (worker[month.value] || 0), 0);
     return total > 0;
@@ -649,8 +649,8 @@ const CalendarAnalyzer = () => {
               onChange={(e) => setSortBy(e.target.value)}
               className="border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="total">Total de turnos</option>
-              <option value="weekend">Turnos de fin de semana</option>
+              <option value="total">Total de guardias</option>
+              <option value="weekend">Guardias de fin de semana</option>
               <option value="weekendPercentage">% Fin de semana</option>
               <option value="friday">Viernes</option>
               <option value="saturday">Sábados</option>
@@ -663,7 +663,7 @@ const CalendarAnalyzer = () => {
 
         <div className="mb-8 bg-white p-4 rounded-lg shadow">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">Gráfico de Turnos</h3>
+            <h3 className="text-lg font-semibold text-gray-800">Gráfico de Guardias</h3>
             <div className="flex gap-2">
               <button
                 onClick={() => setChartStartIndex(Math.max(0, chartStartIndex - 5))}
@@ -715,7 +715,7 @@ const CalendarAnalyzer = () => {
               <tr>
                 {view === 'general' ? (
                   <>
-                    <th className="border px-2 py-2 text-left sticky left-0 bg-gray-100">Trabajador</th>
+                    <th className="border px-2 py-2 text-left sticky left-0 bg-gray-100">Médico</th>
                     <th className="border px-2 py-2 text-center">Total</th>
                     <th className="border px-2 py-2 text-center">Vie</th>
                     <th className="border px-2 py-2 text-center">Sáb</th>
@@ -725,7 +725,7 @@ const CalendarAnalyzer = () => {
                   </>
                 ) : (
                   <>
-                    <th className="border px-2 py-2 text-left sticky left-0 bg-gray-100">Trabajador</th>
+                    <th className="border px-2 py-2 text-left sticky left-0 bg-gray-100">Médico</th>
                     {monthsWithShifts.map(month => (
                       <th key={month.key} className="border px-2 py-2 text-center">{month.key}</th>
                     ))}

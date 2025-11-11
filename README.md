@@ -1,16 +1,16 @@
 # 📊 Analizador de Calendarios de Guardias (sched-anal)
 
-Aplicación web para analizar asignación de guardias desde archivos PDF, Excel o texto. Genera estadísticas detalladas por trabajador con visualización de datos interactiva.
+Aplicación web para analizar asignación de guardias desde archivos PDF, Excel o texto. Genera estadísticas detalladas por médico con visualización de datos interactiva.
 
 ## 🎯 Características
 
 - **📤 Carga de archivos**: PDF, Excel (.xlsx, .xls), CSV y entrada de texto manual
 - **📊 Estadísticas detalladas**:
-  - Total de turnos por trabajador
+   - Total de guardias por médico
   - Desglose por mes
   - Análisis de fin de semana (viernes, sábado, domingo)
-  - Porcentaje de turnos en fin de semana
-  - Análisis de última posición
+   - Porcentaje de guardias en fin de semana
+  - Análisis de Rosell
   
 - **📈 Visualización**: Gráficos interactivos con Recharts
 - **📋 Tablas**: Ordenamiento y filtrado de datos
@@ -103,9 +103,9 @@ Accede a `http://localhost:3000`
 ## 🚀 Uso
 
 1. **Cargar archivo**: Sube un PDF, Excel o ingresa texto manualmente
-2. **Ver análisis**: Se genera automáticamente un resumen de turnos
+2. **Ver análisis**: Se genera automáticamente un resumen de guardias
 3. **Visualizar datos**: 
-   - Gráfico de barras por trabajador
+   - Gráfico de barras por médico
    - Tabla con estadísticas completas
    - Desglose mensual
 4. **Exportar**: 
@@ -204,7 +204,7 @@ MIT License - Ver LICENSE para detalles
 
 ## 👨‍💻 Autor
 
-Desarrollado por el equipo de Análisis de Turnos
+Desarrollado por el equipo de Análisis de Guardias
 
 ## 🤝 Contribuciones
 

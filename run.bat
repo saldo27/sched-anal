@@ -1,5 +1,5 @@
 @echo off
-REM Script para ejecutar la aplicación de Análisis de Turnos
+REM Script para ejecutar la aplicación de Análisis de Guardias
 
 setlocal enabledelayedexpansion
 

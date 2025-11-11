@@ -170,13 +170,13 @@ def export_data():
         workers = data.get('workers', [])
         monthly_data = data.get('monthlyData', [])
         export_format = data.get('format', 'csv').lower()
-        period = data.get('analysisPeriod', 'Análisis de Turnos')
+        period = data.get('analysisPeriod', 'Análisis de Guardias')
         
         print(f"[DEBUG] Export: format={export_format}, workers={len(workers)}, monthly_data={len(monthly_data)}")
         
         if export_format == 'csv':
             # Generate CSV
-            csv_content = 'Trabajador,Total,Viernes,Sábado,Domingo,% Fin de Semana,Rosell\n'
+            csv_content = 'Médico,Total,Viernes,Sábado,Domingo,% Fin de Semana,Rosell\n'
             for worker in workers:
                 csv_content += f'"{worker["name"]}",{worker["total"]},{worker["friday"]},{worker["saturday"]},{worker["sunday"]},{worker["weekendPercentage"]},{worker["lastPosition"]}\n'
             
@@ -221,7 +221,7 @@ def export_data():
             story.append(Spacer(1, 0.1*inch))
             
             global_table_data = [
-                ['Trabajador', 'Total', 'Viernes', 'Sábado', 'Domingo', '% Fin de Semana', 'Rosell']
+                ['Médico', 'Total', 'Viernes', 'Sábado', 'Domingo', '% Fin de Semana', 'Rosell']
             ]
             for worker in workers:
                 global_table_data.append([
@@ -275,7 +275,7 @@ def export_data():
                 all_months = sorted(list(all_months), key=lambda x: month_order.index(x) if x in month_order else 999)
                 
                 if all_months:  # Only show table if there are months with data
-                    monthly_table_data = [['Trabajador'] + all_months + ['Total']]
+                    monthly_table_data = [['Médico'] + all_months + ['Total']]
                     
                     for worker_data in monthly_data:
                         row = [worker_data['name']]
@@ -318,7 +318,7 @@ def export_data():
                 status=200,
                 mimetype='application/pdf',
                 headers={
-                    'Content-Disposition': f'attachment; filename=analisis_turnos_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+                    'Content-Disposition': f'attachment; filename=analisis_guardias_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
                 }
             )
             return response
