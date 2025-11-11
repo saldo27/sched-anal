@@ -346,6 +346,55 @@ const CalendarAnalyzer = () => {
     window.URL.revokeObjectURL(url);
   };
 
+  const handleExportPDF = async () => {
+    try {
+      // Preparar datos mensuales para PDF
+      const monthlyForPDF = sortedWorkers.map(w => ({
+        name: w.name,
+        'Dic': w.december,
+        'Ene': w.january,
+        'Feb': w.february,
+        'Mar': w.march,
+        'Abr': w.april,
+        'May': w.may,
+        'Jun': w.june,
+        'Jul': w.july,
+        'Ago': w.august,
+        'Sep': w.september,
+        'Oct': w.october,
+        'Nov': w.november
+      }));
+
+      const payload = {
+        workers: sortedWorkers,
+        monthlyData: monthlyForPDF,
+        format: 'pdf',
+        analysisPeriod: startDate ? new Date(startDate).toLocaleDateString('es-ES', { year: 'numeric', month: 'long' }) : 'Análisis de Turnos'
+      };
+
+      const response = await fetch('http://localhost:5000/api/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `analisis_turnos_${new Date().toISOString().split('T')[0]}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      alert('Error al exportar PDF: ' + error.message);
+    }
+  };
+
   // Definir todos los meses disponibles
   const allMonths = [
     { key: 'Dic', value: 'december' },
@@ -523,6 +572,13 @@ const CalendarAnalyzer = () => {
             >
               <Download className="w-4 h-4" />
               Exportar CSV
+            </button>
+            <button
+              onClick={handleExportPDF}
+              className="bg-red-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-red-700 transition-colors flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              Exportar PDF
             </button>
             <button
               onClick={handleReset}

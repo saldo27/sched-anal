@@ -2,7 +2,7 @@
 Flask API for calendar file processing and shift schedule analysis.
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import os
@@ -10,6 +10,13 @@ import tempfile
 from pathlib import Path
 from file_processor import CalendarFileProcessor
 import traceback
+from io import BytesIO
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib import colors
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
@@ -142,14 +149,16 @@ def analyze_calendar():
 
 
 @app.route('/api/export', methods=['POST'])
-def export_results():
+def export_data():
     """
-    Export analysis results.
+    Export shift analysis data to CSV, JSON or PDF.
     
     Expected JSON:
     {
         "workers": [...],
-        "format": "csv" or "json"
+        "monthlyData": [...],
+        "format": "csv", "json" or "pdf",
+        "analysisPeriod": "Dec 2024 - Mar 2025"
     }
     """
     try:
@@ -159,7 +168,9 @@ def export_results():
             return jsonify({'error': 'Missing workers data'}), 400
         
         workers = data.get('workers', [])
+        monthly_data = data.get('monthlyData', [])
         export_format = data.get('format', 'csv').lower()
+        period = data.get('analysisPeriod', 'Análisis de Turnos')
         
         if export_format == 'csv':
             # Generate CSV
@@ -177,8 +188,117 @@ def export_results():
             return jsonify({
                 'success': True,
                 'format': 'json',
-                'workers': workers
+                'workers': workers,
+                'monthlyData': monthly_data
             }), 200
+        
+        elif export_format == 'pdf':
+            # Generate PDF with global and monthly data
+            pdf_buffer = BytesIO()
+            doc = SimpleDocTemplate(pdf_buffer, pagesize=letter)
+            story = []
+            styles = getSampleStyleSheet()
+            
+            # Title
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Heading1'],
+                fontSize=16,
+                textColor=colors.HexColor('#1f2937'),
+                spaceAfter=12,
+                alignment=1  # Center
+            )
+            story.append(Paragraph(f"Análisis de Turnos - {period}", title_style))
+            story.append(Paragraph(f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
+            story.append(Spacer(1, 0.3*inch))
+            
+            # GLOBAL DATA SECTION
+            story.append(Paragraph("1. Resumen Global", styles['Heading2']))
+            story.append(Spacer(1, 0.1*inch))
+            
+            global_table_data = [
+                ['Trabajador', 'Total', 'Viernes', 'Sábado', 'Domingo', '% Fin de Semana', 'Últ. Pos.']
+            ]
+            for worker in workers:
+                global_table_data.append([
+                    worker['name'],
+                    str(worker.get('total', 0)),
+                    str(worker.get('friday', 0)),
+                    str(worker.get('saturday', 0)),
+                    str(worker.get('sunday', 0)),
+                    f"{worker.get('weekendPercentage', 0)}%",
+                    str(worker.get('lastPosition', 0))
+                ])
+            
+            global_table = Table(global_table_data, colWidths=[1.5*inch, 0.7*inch, 0.7*inch, 0.7*inch, 0.7*inch, 1*inch, 0.6*inch])
+            global_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#374151')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f3f4f6')])
+            ]))
+            story.append(global_table)
+            story.append(Spacer(1, 0.3*inch))
+            
+            # MONTHLY DATA SECTION (if available)
+            if monthly_data:
+                story.append(PageBreak())
+                story.append(Paragraph("2. Desglose Mensual", styles['Heading2']))
+                story.append(Spacer(1, 0.1*inch))
+                
+                # Get all months from monthly data
+                all_months = set()
+                for worker_data in monthly_data:
+                    for key in worker_data.keys():
+                        if key != 'name':
+                            all_months.add(key)
+                
+                all_months = sorted(list(all_months))
+                
+                monthly_table_data = [['Trabajador'] + all_months + ['Total']]
+                
+                for worker_data in monthly_data:
+                    row = [worker_data['name']]
+                    monthly_total = 0
+                    for month in all_months:
+                        value = worker_data.get(month, 0)
+                        row.append(str(value))
+                        monthly_total += value
+                    row.append(str(monthly_total))
+                    monthly_table_data.append(row)
+                
+                col_widths = [1.5*inch] + [0.7*inch] * len(all_months) + [0.7*inch]
+                monthly_table = Table(monthly_table_data, colWidths=col_widths)
+                monthly_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#374151')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                    ('FONTSIZE', (0, 1), (-1, -1), 9),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f3f4f6')])
+                ]))
+                story.append(monthly_table)
+            
+            # Build PDF
+            doc.build(story)
+            pdf_buffer.seek(0)
+            
+            return send_file(
+                pdf_buffer,
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name=f'analisis_turnos_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+            )
         
         else:
             return jsonify({'error': f'Unsupported format: {export_format}'}), 400
