@@ -1,39 +1,116 @@
-# sched-anal
-Scheduler analyzer - Analyze shift schedules from PDF or Excel files
+# 📊 Analizador de Calendarios de Turnos (sched-anal)
 
-## Overview
+Aplicación web para analizar horarios de turnos desde archivos PDF, Excel o texto. Genera estadísticas detalladas por trabajador con visualización de datos interactiva.
 
-This application analyzes PDF or Excel files containing shift schedules (calendar format, Monday to Sunday) and generates comprehensive statistics for each worker.
+## 🎯 Características
 
-## Features
+- **📤 Carga de archivos**: PDF, Excel (.xlsx, .xls), CSV y entrada de texto manual
+- **📊 Estadísticas detalladas**:
+  - Total de turnos por trabajador
+  - Desglose por mes
+  - Análisis de fin de semana (viernes, sábado, domingo)
+  - Porcentaje de turnos en fin de semana
+  - Análisis de última posición
+  
+- **📈 Visualización**: Gráficos interactivos con Recharts
+- **📋 Tablas**: Ordenamiento y filtrado de datos
+- **💾 Exportación**: Descarga de resultados en CSV
+- **🎨 Interfaz moderna**: Diseño responsivo con Tailwind CSS
 
-The analyzer calculates the following statistics for each worker:
-- **Total Shifts**: Total number of shifts assigned
-- **Shifts per Month**: Breakdown of shifts by month
-- **Friday Shifts**: Number of shifts on Fridays
-- **Saturday Shifts**: Number of shifts on Saturdays
-- **Sunday Shifts**: Number of shifts on Sundays
-- **Weekend Shift %**: Percentage of shifts that fall on weekends (Fri-Sun)
-- **Last Position Shifts**: Number of times assigned to the last position in a day
+## 🚀 Inicio Rápido
 
-## Installation
+### Opción 1: Frontend Solo (sin backend)
 
-1. Clone the repository:
 ```bash
-git clone https://github.com/saldo27/sched-anal.git
-cd sched-anal
+# Instalar dependencias
+npm install
+
+# Ejecutar servidor de desarrollo
+npm run dev
+
+# Compilar para producción
+npm run build
 ```
 
-2. Install dependencies:
+Accede a `http://localhost:3000`
+
+### Opción 2: Full Stack (Frontend + Backend)
+
+#### Backend (Python/Flask)
+
 ```bash
+# Instalar dependencias Python
 pip install -r requirements.txt
+
+# Ejecutar servidor Flask
+python app.py
 ```
 
-## Usage
+El backend estará disponible en `http://localhost:5000`
 
-### Basic Usage
+#### Frontend (React/Vite)
 
-Analyze a shift schedule file:
+```bash
+# En otra terminal
+npm install
+npm run dev
+```
+
+Frontend en `http://localhost:3000` (proxy automático a backend)
+
+## 📁 Estructura del Proyecto
+
+```
+sched-anal/
+├── Frontend (React)
+│   ├── CalendarAnalyzer.jsx      # Componente principal
+│   ├── main.jsx                  # Entrada React
+│   ├── index.html                # HTML
+│   ├── index.css                 # Estilos
+│   ├── vite.config.js            # Config Vite
+│   ├── tailwind.config.js        # Config Tailwind
+│   └── postcss.config.js         # Config PostCSS
+│
+├── Backend (Python)
+│   ├── app.py                    # API Flask
+│   ├── file_processor.py         # Procesamiento de archivos
+│   └── requirements.txt          # Dependencias Python
+│
+├── package.json                  # Dependencias Node.js
+├── README.md                     # Este archivo
+└── FILE_UPLOAD_GUIDE.md         # Guía completa de API
+```
+
+## 📖 Uso
+
+### Interfaz Web
+
+1. **Cargar archivo o texto**:
+   - Carga un archivo PDF, Excel o CSV
+   - O pega el texto del calendario directamente
+
+2. **Configurar parámetros**:
+   - Fecha de inicio del calendario
+   - Mapeo de nombres (ej: REQUE=LUIS REQUENA)
+
+3. **Analizar**: Haz clic en "Analizar Calendario"
+
+4. **Visualizar y exportar**:
+   - Ve gráficos y tablas de resultados
+   - Descarga resultados en CSV
+
+### Uso Programático (Python)
+
+```python
+from file_processor import CalendarFileProcessor
+
+# Procesar archivo
+processor = CalendarFileProcessor()
+text = processor.process_file('calendario.pdf')
+
+# Detectar estructura
+structure = processor.detect_calendar_structure(text)
+print(structure)
 ```bash
 python sched_analyzer.py schedule.xlsx
 ```
@@ -67,9 +144,22 @@ python sched_analyzer.py schedule.xlsx -o results.csv
 ## Input File Format
 
 The application expects shift schedule files in calendar format with:
-- Dates arranged in columns or rows (Monday to Sunday weeks)
-- Worker names in cells indicating shift assignments
-- Optional: Position numbers (1, 2, 3, etc.) for tracking last position
+- Calendar layout with days of the week (Monday-Sunday)
+- Dates or day numbers (1-31) in the header or cells
+- Worker names in cells corresponding to their assigned shifts
+- Supports PDF files with table-based calendars or Excel spreadsheets
+
+### Supported Formats
+
+**PDF Format**: Calendar-style PDFs with:
+- Day numbers (1-31) in cells
+- Worker names assigned under each day
+- Multiple calendars on separate pages (one per month)
+
+**Excel Format**: Spreadsheets with:
+- Dates in the first column or first row
+- Worker names in cells corresponding to shifts
+- Optional position columns for tracking shift positions
 
 ### Example Excel Format
 
