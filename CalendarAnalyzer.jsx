@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 const CalendarAnalyzer = () => {
   const [calendarText, setCalendarText] = useState('');
   const [startDate, setStartDate] = useState('2025-12-22');
-  const [nameMapping, setNameMapping] = useState('luis h=LUIS H\nluish=LUIS H\nreque=LUIS R\nrobert=ROBERTO\nagueda=AGUEDA');
+  const [nameMapping, setNameMapping] = useState('luis h=LUIS H\nluish=LUIS H\nreque=LUIS R\nrobert=ROBERTO\nagueda=AGUEDA\nluisH=LUIS H');
   const [sortBy, setSortBy] = useState('total');
   const [view, setView] = useState('general');
   const [showAnalysis, setShowAnalysis] = useState(false);
@@ -29,7 +29,8 @@ const CalendarAnalyzer = () => {
     
     // Buscar en el mapeo por aproximación
     for (const [key, value] of Object.entries(nameMap)) {
-      if (trimmed.includes(key) || key.includes(trimmed)) {
+      if (trimmed.toUpperCase().includes(key.toUpperCase()) || 
+          key.toUpperCase().includes(trimmed.toUpperCase())) {
         return value;
       }
     }
@@ -37,38 +38,46 @@ const CalendarAnalyzer = () => {
     return trimmed;
   };
 
+  // Detectar si una palabra es probablemente una inicial (apellido o nombre corto)
+  const isLikelyInitial = (word) => {
+    // Una sola letra o dos letras máximo
+    // O un patrón como "H." o "h."
+    return /^[A-Za-z]\.?$|^[A-Za-z]{1,2}$/.test(word);
+  };
+
   // Función mejorada para parsear nombres de trabajadores
   const parseWorkerNames = (rowText, dayCount, nameMap, nameMapUpper) => {
-    // Intenta separar los nombres basándose en el número de días
     const words = rowText.trim().split(/\s+/);
     const workers = [];
     
-    // Si tenemos exactamente el número correcto de palabras, es simple
+    // Si tenemos exactamente el número correcto de palabras, podría ser simple
+    // pero aún puede haber nombres compuestos - verificar primero
     if (words.length === dayCount) {
-      return words.map(w => normalizeWorkerName(w, nameMap, nameMapUpper));
+      // Revisar si hay palabras que parecen iniciales
+      let hasInitials = false;
+      for (let i = 1; i < words.length; i++) {
+        if (isLikelyInitial(words[i])) {
+          hasInitials = true;
+          break;
+        }
+      }
+      
+      // Si no hay iniciales obvias, es probablemente un mapeo simple
+      if (!hasInitials) {
+        return words.map(w => normalizeWorkerName(w, nameMap, nameMapUpper));
+      }
     }
     
-    // Si tenemos más palabras, intentar agrupar nombres compuestos
+    // Agrupar nombres compuestos combinando palabras cortas (iniciales)
     let wordIndex = 0;
     for (let i = 0; i < dayCount && wordIndex < words.length; i++) {
       let currentName = words[wordIndex];
       wordIndex++;
       
-      // Intentar combinar palabras si la siguiente es corta (apellido o inicial)
-      // y no está en el mapeo como palabra individual
-      while (wordIndex < words.length && 
-             words[wordIndex].length <= 2) {
-        const testName = currentName + ' ' + words[wordIndex];
-        const normalized = normalizeWorkerName(testName, nameMap, nameMapUpper);
-        
-        // Si la combinación se mapea o la palabra siguiente es una inicial típica
-        if (nameMap[testName] || nameMapUpper[testName.toUpperCase()] || 
-            /^[A-Z]$/i.test(words[wordIndex])) {
-          currentName = testName;
-          wordIndex++;
-        } else {
-          break;
-        }
+      // Combinar palabras cortas (iniciales o apellidos) con el nombre
+      while (wordIndex < words.length && isLikelyInitial(words[wordIndex])) {
+        currentName += ' ' + words[wordIndex];
+        wordIndex++;
       }
       
       workers.push(normalizeWorkerName(currentName, nameMap, nameMapUpper));
