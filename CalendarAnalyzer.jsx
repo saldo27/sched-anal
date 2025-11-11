@@ -351,19 +351,21 @@ const CalendarAnalyzer = () => {
       // Preparar datos mensuales para PDF
       const monthlyForPDF = sortedWorkers.map(w => ({
         name: w.name,
-        'Dic': w.december,
-        'Ene': w.january,
-        'Feb': w.february,
-        'Mar': w.march,
-        'Abr': w.april,
-        'May': w.may,
-        'Jun': w.june,
-        'Jul': w.july,
-        'Ago': w.august,
-        'Sep': w.september,
-        'Oct': w.october,
-        'Nov': w.november
+        'Dic': w.december || 0,
+        'Ene': w.january || 0,
+        'Feb': w.february || 0,
+        'Mar': w.march || 0,
+        'Abr': w.april || 0,
+        'May': w.may || 0,
+        'Jun': w.june || 0,
+        'Jul': w.july || 0,
+        'Ago': w.august || 0,
+        'Sep': w.september || 0,
+        'Oct': w.october || 0,
+        'Nov': w.november || 0
       }));
+
+      console.log('Monthly data for PDF:', monthlyForPDF);
 
       const payload = {
         workers: sortedWorkers,
@@ -371,6 +373,8 @@ const CalendarAnalyzer = () => {
         format: 'pdf',
         analysisPeriod: startDate ? new Date(startDate).toLocaleDateString('es-ES', { year: 'numeric', month: 'long' }) : 'Análisis de Turnos'
       };
+
+      console.log('PDF payload:', payload);
 
       const response = await fetch('/api/export', {
         method: 'POST',

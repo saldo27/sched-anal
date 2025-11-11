@@ -172,6 +172,8 @@ def export_data():
         export_format = data.get('format', 'csv').lower()
         period = data.get('analysisPeriod', 'Análisis de Turnos')
         
+        print(f"[DEBUG] Export: format={export_format}, workers={len(workers)}, monthly_data={len(monthly_data)}")
+        
         if export_format == 'csv':
             # Generate CSV
             csv_content = 'Trabajador,Total,Viernes,Sábado,Domingo,% Fin de Semana,Última Posición\n'
