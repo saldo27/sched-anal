@@ -121,9 +121,14 @@ const CalendarAnalyzer = () => {
           const day = parseInt(daysLine[j]);
           
           // Si el día es menor que el anterior, cambiar de mes
-          if (calendarData.length > 0 && day < parseInt(daysLine[j - 1] || 0)) {
-            currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+          if (j > 0 && day < parseInt(daysLine[j - 1] || 0)) {
+            // Cambiar de mes
+            const nextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+            currentDate = nextMonth;
           }
+          
+          // Establecer el día correcto del mes actual
+          currentDate.setDate(day);
           
           const workers = [row1[j], row2[j], row3[j], row4[j]]
             .filter(w => w)
@@ -135,8 +140,6 @@ const CalendarAnalyzer = () => {
             year: currentDate.getFullYear(),
             workers: workers
           });
-          
-          currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day + 1);
         }
       }
       
