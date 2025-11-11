@@ -379,16 +379,34 @@ const CalendarAnalyzer = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`Error ${response.status}`);
+        // Intentar leer el error
+        let errorText = '';
+        try {
+          const errorData = await response.json();
+          errorText = errorData.error || `Error ${response.status}`;
+        } catch {
+          errorText = `Error ${response.status}`;
+        }
+        throw new Error(errorText);
       }
 
       const blob = await response.blob();
+      
+      // Verificar que el blob sea realmente un PDF
+      if (blob.type !== 'application/pdf' && !blob.type.startsWith('application/pdf')) {
+        const text = await blob.text();
+        console.error('Response no es PDF:', text.substring(0, 200));
+        throw new Error('La respuesta no es un PDF válido');
+      }
+      
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `analisis_turnos_${new Date().toISOString().split('T')[0]}.pdf`;
       a.click();
       window.URL.revokeObjectURL(url);
+      
+      alert('PDF descargado correctamente');
     } catch (error) {
       console.error('Error exporting PDF:', error);
       alert('Error al exportar PDF: ' + error.message);
