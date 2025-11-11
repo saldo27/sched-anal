@@ -13,6 +13,7 @@ const CalendarAnalyzer = () => {
   const [error, setError] = useState('');
   const [fileName, setFileName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [chartStartIndex, setChartStartIndex] = useState(0);
 
   // Función para limpiar y normalizar nombres (case-insensitive)
   const normalizeWorkerName = (name, nameMap, nameMapUpper) => {
@@ -561,8 +562,30 @@ const CalendarAnalyzer = () => {
         </div>
 
         <div className="mb-8 bg-white p-4 rounded-lg shadow">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-800">Gráfico de Turnos</h3>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setChartStartIndex(Math.max(0, chartStartIndex - 5))}
+                disabled={chartStartIndex === 0}
+                className="px-3 py-1 bg-gray-200 text-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300"
+              >
+                ← Anterior
+              </button>
+              <span className="px-3 py-1 text-sm text-gray-600">
+                {chartStartIndex + 1}-{Math.min(chartStartIndex + 15, sortedWorkers.length)} de {sortedWorkers.length}
+              </span>
+              <button
+                onClick={() => setChartStartIndex(Math.min(chartStartIndex + 5, Math.max(0, sortedWorkers.length - 15)))}
+                disabled={chartStartIndex + 15 >= sortedWorkers.length}
+                className="px-3 py-1 bg-gray-200 text-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300"
+              >
+                Siguiente →
+              </button>
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={view === 'general' ? sortedWorkers.slice(0, 15) : monthlyChartData.slice(0, 15)}>
+            <BarChart data={view === 'general' ? sortedWorkers.slice(chartStartIndex, chartStartIndex + 15) : monthlyChartData.slice(chartStartIndex, chartStartIndex + 15)}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={120} />
               <YAxis />
