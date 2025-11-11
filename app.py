@@ -203,4 +203,21 @@ def internal_error(error):
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)
+    # Windows compatibility: use 127.0.0.1 instead of 0.0.0.0
+    # 0.0.0.0 sometimes has connection issues on Windows
+    # use_reloader=False avoids watchdog issues
+    import sys
+    is_windows = sys.platform.startswith('win')
+    host = '127.0.0.1' if is_windows else '0.0.0.0'
+    
+    print(f"\n{'='*70}")
+    print(f"🚀 Starting Calendar Analyzer Backend")
+    print(f"{'='*70}")
+    print(f"Host: {host}")
+    print(f"Port: 5000")
+    print(f"Debug: True")
+    print(f"Reloader: Disabled (watchdog compatible)")
+    print(f"Platform: {'Windows' if is_windows else 'Unix-like'}")
+    print(f"{'='*70}\n")
+    
+    app.run(debug=True, host=host, port=5000, use_reloader=False)
