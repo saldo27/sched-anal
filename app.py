@@ -195,9 +195,11 @@ def export_data():
             }), 200
         
         elif export_format == 'pdf':
-            # Generate PDF with global and monthly data
+            # Generate PDF with global and monthly data - A4 Landscape
             pdf_buffer = BytesIO()
-            doc = SimpleDocTemplate(pdf_buffer, pagesize=letter)
+            doc = SimpleDocTemplate(pdf_buffer, pagesize=A4, topMargin=0.5*inch, bottomMargin=0.5*inch, 
+                                   leftMargin=0.5*inch, rightMargin=0.5*inch)
+            doc.pagesize = (A4[1], A4[0])  # Landscape orientation
             story = []
             styles = getSampleStyleSheet()
             
@@ -205,14 +207,14 @@ def export_data():
             title_style = ParagraphStyle(
                 'CustomTitle',
                 parent=styles['Heading1'],
-                fontSize=16,
+                fontSize=14,
                 textColor=colors.HexColor('#1f2937'),
-                spaceAfter=12,
+                spaceAfter=6,
                 alignment=1  # Center
             )
             story.append(Paragraph(f"Análisis de Turnos - {period}", title_style))
             story.append(Paragraph(f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
-            story.append(Spacer(1, 0.3*inch))
+            story.append(Spacer(1, 0.2*inch))
             
             # GLOBAL DATA SECTION
             story.append(Paragraph("1. Resumen Global", styles['Heading2']))
@@ -232,64 +234,77 @@ def export_data():
                     str(worker.get('lastPosition', 0))
                 ])
             
-            global_table = Table(global_table_data, colWidths=[1.5*inch, 0.7*inch, 0.7*inch, 0.7*inch, 0.7*inch, 1*inch, 0.6*inch])
+            global_table = Table(global_table_data, colWidths=[1.3*inch, 0.6*inch, 0.6*inch, 0.6*inch, 0.6*inch, 0.9*inch, 0.6*inch])
             global_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#374151')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 10),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
                 ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
                 ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f3f4f6')])
             ]))
             story.append(global_table)
-            story.append(Spacer(1, 0.3*inch))
+            story.append(Spacer(1, 0.2*inch))
             
             # MONTHLY DATA SECTION (if available)
-            if monthly_data:
+            if monthly_data and len(monthly_data) > 0:
                 story.append(PageBreak())
                 story.append(Paragraph("2. Desglose Mensual", styles['Heading2']))
                 story.append(Spacer(1, 0.1*inch))
                 
-                # Get all months from monthly data
+                # Get only months with data (non-zero totals)
                 all_months = set()
+                month_totals = {}
+                
                 for worker_data in monthly_data:
                     for key in worker_data.keys():
                         if key != 'name':
-                            all_months.add(key)
+                            value = worker_data.get(key, 0)
+                            if value > 0:
+                                all_months.add(key)
+                                if key not in month_totals:
+                                    month_totals[key] = 0
+                                month_totals[key] += value
                 
-                all_months = sorted(list(all_months))
+                # Order months: Dic, Ene, Feb, Mar, Abr, May, Jun, Jul, Ago, Sep, Oct, Nov
+                month_order = ['Dic', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov']
+                all_months = sorted(list(all_months), key=lambda x: month_order.index(x) if x in month_order else 999)
                 
-                monthly_table_data = [['Trabajador'] + all_months + ['Total']]
-                
-                for worker_data in monthly_data:
-                    row = [worker_data['name']]
-                    monthly_total = 0
-                    for month in all_months:
-                        value = worker_data.get(month, 0)
-                        row.append(str(value))
-                        monthly_total += value
-                    row.append(str(monthly_total))
-                    monthly_table_data.append(row)
-                
-                col_widths = [1.5*inch] + [0.7*inch] * len(all_months) + [0.7*inch]
-                monthly_table = Table(monthly_table_data, colWidths=col_widths)
-                monthly_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#374151')),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 10),
-                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                    ('FONTSIZE', (0, 1), (-1, -1), 9),
-                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f3f4f6')])
-                ]))
-                story.append(monthly_table)
+                if all_months:  # Only show table if there are months with data
+                    monthly_table_data = [['Trabajador'] + all_months + ['Total']]
+                    
+                    for worker_data in monthly_data:
+                        row = [worker_data['name']]
+                        monthly_total = 0
+                        for month in all_months:
+                            value = worker_data.get(month, 0)
+                            row.append(str(value))
+                            monthly_total += value
+                        row.append(str(monthly_total))
+                        monthly_table_data.append(row)
+                    
+                    # Adjust column widths for landscape
+                    col_width = 5.5 / (len(all_months) + 2)  # A4 landscape is ~7.5 inches, minus margins
+                    col_widths = [1.2*inch] + [col_width*inch] * len(all_months) + [0.6*inch]
+                    
+                    monthly_table = Table(monthly_table_data, colWidths=col_widths)
+                    monthly_table.setStyle(TableStyle([
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#374151')),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, 0), (-1, 0), 8),
+                        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                        ('FONTSIZE', (0, 1), (-1, -1), 7),
+                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f3f4f6')])
+                    ]))
+                    story.append(monthly_table)
             
             # Build PDF
             doc.build(story)
