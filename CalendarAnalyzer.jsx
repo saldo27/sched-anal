@@ -346,6 +346,28 @@ const CalendarAnalyzer = () => {
     window.URL.revokeObjectURL(url);
   };
 
+  // Definir todos los meses disponibles
+  const allMonths = [
+    { key: 'Dic', value: 'december' },
+    { key: 'Ene', value: 'january' },
+    { key: 'Feb', value: 'february' },
+    { key: 'Mar', value: 'march' },
+    { key: 'Abr', value: 'april' },
+    { key: 'May', value: 'may' },
+    { key: 'Jun', value: 'june' },
+    { key: 'Jul', value: 'july' },
+    { key: 'Ago', value: 'august' },
+    { key: 'Sep', value: 'september' },
+    { key: 'Oct', value: 'october' },
+    { key: 'Nov', value: 'november' }
+  ];
+
+  // Calcular qué meses tienen turnos reales (suma > 0)
+  const monthsWithShifts = allMonths.filter(month => {
+    const total = sortedWorkers.reduce((sum, worker) => sum + (worker[month.value] || 0), 0);
+    return total > 0;
+  });
+
   const monthlyChartData = sortedWorkers.map(w => ({
     name: w.name,
     'Dic': w.december,
@@ -599,10 +621,10 @@ const CalendarAnalyzer = () => {
                 </>
               ) : (
                 <>
-                  <Bar dataKey="Dic" fill="#10b981" />
-                  <Bar dataKey="Ene" fill="#3b82f6" />
-                  <Bar dataKey="Feb" fill="#f59e0b" />
-                  <Bar dataKey="Mar" fill="#ef4444" />
+                  {monthsWithShifts.map((month, idx) => {
+                    const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#06b6d4', '#84cc16', '#a855f7'];
+                    return <Bar key={month.key} dataKey={month.key} fill={colors[idx % colors.length]} />;
+                  })}
                 </>
               )}
             </BarChart>
@@ -613,27 +635,54 @@ const CalendarAnalyzer = () => {
           <table className="min-w-full bg-white border border-gray-300 text-sm shadow-sm">
             <thead className="bg-gray-100">
               <tr>
-                <th className="border px-2 py-2 text-left sticky left-0 bg-gray-100">Trabajador</th>
-                <th className="border px-2 py-2 text-center">Total</th>
-                <th className="border px-2 py-2 text-center">Vie</th>
-                <th className="border px-2 py-2 text-center">Sáb</th>
-                <th className="border px-2 py-2 text-center">Dom</th>
-                <th className="border px-2 py-2 text-center">% F.S.</th>
-                <th className="border px-2 py-2 text-center">Últ.Pos</th>
+                {view === 'general' ? (
+                  <>
+                    <th className="border px-2 py-2 text-left sticky left-0 bg-gray-100">Trabajador</th>
+                    <th className="border px-2 py-2 text-center">Total</th>
+                    <th className="border px-2 py-2 text-center">Vie</th>
+                    <th className="border px-2 py-2 text-center">Sáb</th>
+                    <th className="border px-2 py-2 text-center">Dom</th>
+                    <th className="border px-2 py-2 text-center">% F.S.</th>
+                    <th className="border px-2 py-2 text-center">Últ.Pos</th>
+                  </>
+                ) : (
+                  <>
+                    <th className="border px-2 py-2 text-left sticky left-0 bg-gray-100">Trabajador</th>
+                    {monthsWithShifts.map(month => (
+                      <th key={month.key} className="border px-2 py-2 text-center">{month.key}</th>
+                    ))}
+                    <th className="border px-2 py-2 text-center">Total</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
-              {sortedWorkers.map((worker, idx) => (
-                <tr key={worker.name} className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                  <td className="border px-2 py-2 font-semibold sticky left-0 bg-inherit">{worker.name}</td>
-                  <td className="border px-2 py-2 text-center font-bold">{worker.total}</td>
-                  <td className="border px-2 py-2 text-center">{worker.friday}</td>
-                  <td className="border px-2 py-2 text-center">{worker.saturday}</td>
-                  <td className="border px-2 py-2 text-center">{worker.sunday}</td>
-                  <td className="border px-2 py-2 text-center font-semibold">{worker.weekendPercentage}%</td>
-                  <td className="border px-2 py-2 text-center">{worker.lastPosition}</td>
-                </tr>
-              ))}
+              {view === 'general' ? (
+                sortedWorkers.map((worker, idx) => (
+                  <tr key={worker.name} className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                    <td className="border px-2 py-2 font-semibold sticky left-0 bg-inherit">{worker.name}</td>
+                    <td className="border px-2 py-2 text-center font-bold">{worker.total}</td>
+                    <td className="border px-2 py-2 text-center">{worker.friday}</td>
+                    <td className="border px-2 py-2 text-center">{worker.saturday}</td>
+                    <td className="border px-2 py-2 text-center">{worker.sunday}</td>
+                    <td className="border px-2 py-2 text-center font-semibold">{worker.weekendPercentage}%</td>
+                    <td className="border px-2 py-2 text-center">{worker.lastPosition}</td>
+                  </tr>
+                ))
+              ) : (
+                monthlyChartData.map((worker, idx) => {
+                  const monthlyTotal = monthsWithShifts.reduce((sum, month) => sum + (worker[month.key] || 0), 0);
+                  return (
+                    <tr key={worker.name} className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                      <td className="border px-2 py-2 font-semibold sticky left-0 bg-inherit">{worker.name}</td>
+                      {monthsWithShifts.map(month => (
+                        <td key={month.key} className="border px-2 py-2 text-center">{worker[month.key] || 0}</td>
+                      ))}
+                      <td className="border px-2 py-2 text-center font-bold">{monthlyTotal}</td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
