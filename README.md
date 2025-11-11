@@ -1,6 +1,6 @@
-# 📊 Analizador de Calendarios de Turnos (sched-anal)
+# 📊 Analizador de Calendarios de Guardias (sched-anal)
 
-Aplicación web para analizar horarios de turnos desde archivos PDF, Excel o texto. Genera estadísticas detalladas por trabajador con visualización de datos interactiva.
+Aplicación web para analizar asignación de guardias desde archivos PDF, Excel o texto. Genera estadísticas detalladas por trabajador con visualización de datos interactiva.
 
 ## 🎯 Características
 

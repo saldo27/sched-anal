@@ -9,8 +9,8 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setup(
     name="sched-analyzer",
     version="1.0.0",
-    author="Schedule Analyzer Team",
-    description="Herramienta para análisis de turnos desde calendarios PDF y Excel",
+    author="Luis Herrera Para",
+    description="Herramienta para análisis de guardias desde calendarios PDF y Excel",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/saldo27/sched-anal",

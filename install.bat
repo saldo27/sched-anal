@@ -6,7 +6,7 @@ setlocal enabledelayedexpansion
 
 echo.
 echo ===============================================
-echo   Instalador de Análisis de Turnos
+echo   Instalador de Análisis de Guardias
 echo ===============================================
 echo.
 

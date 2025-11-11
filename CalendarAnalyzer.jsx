@@ -463,7 +463,7 @@ const CalendarAnalyzer = () => {
             <div className="text-center mb-8">
               <FileText className="w-16 h-16 mx-auto text-indigo-600 mb-4" />
               <h1 className="text-4xl font-bold text-gray-800 mb-2">
-                Analizador de Calendarios de Turnos
+                Analizador de Calendarios de Guardias
               </h1>
               <p className="text-gray-600">
                 Carga PDF, Excel o pega el texto de tu calendario y obtén estadísticas detalladas
@@ -584,7 +584,7 @@ const CalendarAnalyzer = () => {
       <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">Análisis de Turnos</h1>
+            <h1 className="text-3xl font-bold text-gray-800">Análisis de Guardias</h1>
             {fileName && <p className="text-sm text-gray-500 mt-1">Archivo: {fileName}</p>}
           </div>
           <div className="flex gap-2">
@@ -621,11 +621,11 @@ const CalendarAnalyzer = () => {
             <p className="text-2xl font-bold text-green-900">{Object.keys(analysis).length}</p>
           </div>
           <div className="bg-purple-50 p-4 rounded-lg">
-            <p className="text-sm text-purple-600 font-semibold">Turnos por Día</p>
+            <p className="text-sm text-purple-600 font-semibold">Guardias por Día</p>
             <p className="text-2xl font-bold text-purple-900">4</p>
           </div>
           <div className="bg-orange-50 p-4 rounded-lg">
-            <p className="text-sm text-orange-600 font-semibold">Total Turnos</p>
+            <p className="text-sm text-orange-600 font-semibold">Total Guardias</p>
             <p className="text-2xl font-bold text-orange-900">{calendarData.length * 4}</p>
           </div>
         </div>
@@ -655,7 +655,7 @@ const CalendarAnalyzer = () => {
               <option value="friday">Viernes</option>
               <option value="saturday">Sábados</option>
               <option value="sunday">Domingos</option>
-              <option value="lastPosition">Última posición</option>
+              <option value="lastPosition">Rosell</option>
               <option value="name">Nombre</option>
             </select>
           </div>
@@ -695,7 +695,7 @@ const CalendarAnalyzer = () => {
                 <>
                   <Bar dataKey="total" fill="#3b82f6" name="Total" />
                   <Bar dataKey="weekend" fill="#ef4444" name="Fin de Semana" />
-                  <Bar dataKey="lastPosition" fill="#f59e0b" name="Última Posición" />
+                  <Bar dataKey="lastPosition" fill="#f59e0b" name="Rosell" />
                 </>
               ) : (
                 <>

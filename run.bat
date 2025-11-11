@@ -5,7 +5,7 @@ setlocal enabledelayedexpansion
 
 echo.
 echo ===============================================
-echo   Análisis de Turnos - Aplicación
+echo   Análisis de Guardias - Aplicación
 echo ===============================================
 echo.
 
