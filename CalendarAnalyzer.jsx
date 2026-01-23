@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Upload, FileText, Download, AlertCircle } from 'lucide-react';
+import { Upload, FileText, Download, AlertCircle, AlertTriangle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 const CalendarAnalyzer = () => {
   const [calendarText, setCalendarText] = useState('');
   const [startDate, setStartDate] = useState('2025-12-22');
   const [nameMapping, setNameMapping] = useState('luis h=LUIS H\nluish=LUIS H\nreque=LUIS R\nrobert=ROBERTO\nagueda=AGUEDA\nluisH=LUIS H');
+  const [holidays, setHolidays] = useState('');
   const [sortBy, setSortBy] = useState('total');
   const [view, setView] = useState('general');
   const [showAnalysis, setShowAnalysis] = useState(false);
@@ -15,27 +16,84 @@ const CalendarAnalyzer = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [chartStartIndex, setChartStartIndex] = useState(0);
 
+  // Función para parsear festivos desde string
+  const parseHolidays = (holidayString) => {
+    if (!holidayString || !holidayString.trim()) return [];
+
+    return holidayString.split(',')
+      .map(dateStr => {
+        const trimmed = dateStr.trim();
+        if (!trimmed) return null;
+
+        // Detectar formato: YYYY-MM-DD o DD-MM-YYYY
+        const parts = trimmed.split(/[-/]/);
+        if (parts.length !== 3) return null;
+
+        let day, month, year;
+
+        if (parts[0].length === 4) {
+          // Asumimos YYYY-MM-DD
+          year = parseInt(parts[0], 10);
+          month = parseInt(parts[1], 10);
+          day = parseInt(parts[2], 10);
+        } else {
+          // Asumimos DD-MM-YYYY
+          day = parseInt(parts[0], 10);
+          month = parseInt(parts[1], 10);
+          year = parseInt(parts[2], 10);
+        }
+
+        // Manejar años de dos dígitos
+        if (year < 100) {
+          year += 2000;
+        }
+
+        if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
+
+        // Create date (month is 0-indexed in JavaScript)
+        const date = new Date(year, month - 1, day);
+        if (isNaN(date.getTime())) return null;
+
+        return date;
+      })
+      .filter(d => d !== null);
+  };
+
+  // Función para comparar si dos fechas son el mismo día
+  const isSameDay = (date1, date2) => {
+    return date1.getFullYear() === date2.getFullYear() &&
+      date1.getMonth() === date2.getMonth() &&
+      date1.getDate() === date2.getDate();
+  };
+
+  // Función para obtener el día siguiente
+  const getNextDay = (date) => {
+    const next = new Date(date);
+    next.setDate(next.getDate() + 1);
+    return next;
+  };
+
   // Función para limpiar y normalizar nombres (case-insensitive)
   const normalizeWorkerName = (name, nameMap, nameMapUpper) => {
     if (!name) return null;
-    
+
     const trimmed = name.trim();
     const upper = trimmed.toUpperCase();
-    
+
     // Búsqueda exact case-sensitive primero
     if (nameMap[trimmed]) return nameMap[trimmed];
-    
+
     // Búsqueda case-insensitive
     if (nameMapUpper[upper]) return nameMapUpper[upper];
-    
+
     // Buscar en el mapeo por aproximación
     for (const [key, value] of Object.entries(nameMap)) {
-      if (trimmed.toUpperCase().includes(key.toUpperCase()) || 
-          key.toUpperCase().includes(trimmed.toUpperCase())) {
+      if (trimmed.toUpperCase().includes(key.toUpperCase()) ||
+        key.toUpperCase().includes(trimmed.toUpperCase())) {
         return value;
       }
     }
-    
+
     return trimmed;
   };
 
@@ -50,7 +108,7 @@ const CalendarAnalyzer = () => {
   const parseWorkerNames = (rowText, dayCount, nameMap, nameMapUpper) => {
     const words = rowText.trim().split(/\s+/);
     const workers = [];
-    
+
     // Si tenemos exactamente el número correcto de palabras, podría ser simple
     // pero aún puede haber nombres compuestos - verificar primero
     if (words.length === dayCount) {
@@ -62,28 +120,28 @@ const CalendarAnalyzer = () => {
           break;
         }
       }
-      
+
       // Si no hay iniciales obvias, es probablemente un mapeo simple
       if (!hasInitials) {
         return words.map(w => normalizeWorkerName(w, nameMap, nameMapUpper));
       }
     }
-    
+
     // Agrupar nombres compuestos combinando palabras cortas (iniciales)
     let wordIndex = 0;
     for (let i = 0; i < dayCount && wordIndex < words.length; i++) {
       let currentName = words[wordIndex];
       wordIndex++;
-      
+
       // Combinar palabras cortas (iniciales o apellidos) con el nombre
       while (wordIndex < words.length && isLikelyInitial(words[wordIndex])) {
         currentName += ' ' + words[wordIndex];
         wordIndex++;
       }
-      
+
       workers.push(normalizeWorkerName(currentName, nameMap, nameMapUpper));
     }
-    
+
     return workers.filter(w => w);
   };
 
@@ -93,7 +151,7 @@ const CalendarAnalyzer = () => {
       // Crear mapeo de nombres (case-sensitive y case-insensitive)
       const nameMap = {};
       const nameMapUpper = {}; // Para búsqueda case-insensitive
-      
+
       mappings.split('\n').forEach(line => {
         const [from, to] = line.split('=').map(s => s.trim());
         if (from && to) {
@@ -105,45 +163,57 @@ const CalendarAnalyzer = () => {
       // Parsear el texto del calendario
       const lines = text.trim().split('\n').filter(l => l.trim());
       const calendarData = [];
-      
+
       let currentDate = new Date(startDateStr);
-      
+      let previousDay = 0;
+
       for (let i = 0; i < lines.length; i += 5) {
         const daysLine = lines[i].trim().split(/\s+/);
         const dayCount = daysLine.length;
-        
+
         // Usar la función mejorada para parsear nombres
         const row1 = parseWorkerNames(lines[i + 1] || '', dayCount, nameMap, nameMapUpper);
         const row2 = parseWorkerNames(lines[i + 2] || '', dayCount, nameMap, nameMapUpper);
         const row3 = parseWorkerNames(lines[i + 3] || '', dayCount, nameMap, nameMapUpper);
         const row4 = parseWorkerNames(lines[i + 4] || '', dayCount, nameMap, nameMapUpper);
-        
+
         for (let j = 0; j < daysLine.length; j++) {
           const day = parseInt(daysLine[j]);
-          
+
           // Si el día es menor que el anterior, cambiar de mes
-          if (j > 0 && day < parseInt(daysLine[j - 1] || 0)) {
+          // Usamos previousDay para detectar cambios incluso si ocurren al inicio de una nueva fila
+          if (previousDay > 0 && day < previousDay) {
             // Cambiar de mes
             const nextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
             currentDate = nextMonth;
           }
-          
+
           // Establecer el día correcto del mes actual
           currentDate.setDate(day);
-          
+
           const workers = [row1[j], row2[j], row3[j], row4[j]]
             .filter(w => w)
             .map(w => w);
-          
+
+          // Calcular día de la semana basado en la posición de la columna
+          // El calendario es Lunes-Domingo (7 columnas)
+          // j % 7: 0=Lunes, 1=Martes, 2=Miércoles, 3=Jueves, 4=Viernes, 5=Sábado, 6=Domingo
+          // Convertir a formato JavaScript getDay(): 0=Domingo, 1=Lunes, ..., 6=Sábado
+          const columnDayOfWeek = j % 7; // 0-6 donde 0=Lunes
+          const jsDayOfWeek = columnDayOfWeek === 6 ? 0 : columnDayOfWeek + 1; // Convertir a formato JS
+
           calendarData.push({
             day: day,
             month: currentDate.getMonth() + 1,
             year: currentDate.getFullYear(),
+            dayOfWeek: jsDayOfWeek, // Agregar día de la semana basado en columna
             workers: workers
           });
+
+          previousDay = day;
         }
       }
-      
+
       return calendarData;
     } catch (error) {
       console.error('Error parsing calendar:', error);
@@ -160,26 +230,52 @@ const CalendarAnalyzer = () => {
       setError('');
       setFileName(file.name);
       setIsLoading(true);
-      
+
       const formData = new FormData();
       formData.append('file', file);
-      
+
       // Usar el backend API para procesar el PDF
       const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData
       });
-      
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al cargar el archivo');
+        // Try to parse error message from JSON response
+        let errorMessage = `Error del servidor (${response.status})`;
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } else {
+            // If not JSON, try to get text
+            const errorText = await response.text();
+            if (errorText && errorText.length < 200) {
+              errorMessage = errorText;
+            }
+          }
+        } catch (parseError) {
+          // If parsing fails, use the status-based message
+          console.error('Error parsing error response:', parseError);
+        }
+        throw new Error(errorMessage);
       }
-      
+
       const data = await response.json();
       setCalendarText(data.text);
       setIsLoading(false);
     } catch (err) {
-      setError(`Error al cargar PDF: ${err.message}`);
+      // Provide more specific error messages
+      let errorMessage = err.message;
+
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        errorMessage = 'No se puede conectar con el servidor. Asegúrate de que el backend esté ejecutándose en http://localhost:5000';
+      } else if (err.message.includes('JSON')) {
+        errorMessage = 'Error al procesar la respuesta del servidor. Verifica que el backend esté funcionando correctamente.';
+      }
+
+      setError(`Error al cargar PDF: ${errorMessage}`);
       setFileName('');
       setIsLoading(false);
     }
@@ -193,25 +289,25 @@ const CalendarAnalyzer = () => {
       setError('');
       setFileName(file.name);
       const reader = new FileReader();
-      
+
       reader.onload = (e) => {
         try {
           const data = new Uint8Array(e.target.result);
           const workbook = XLSX.read(data, { type: 'array' });
-          
+
           // Obtener la primera hoja
           const firstSheet = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheet];
-          
+
           // Convertir a CSV para mantener el formato de texto
           const csv = XLSX.utils.sheet_to_csv(worksheet, { blankrows: false });
-          
+
           // Convertir CSV a formato similar al del calendario
           const lines = csv.split('\n').filter(l => l.trim());
-          const formattedText = lines.map(line => 
+          const formattedText = lines.map(line =>
             line.split(',').map(cell => cell.trim()).filter(c => c).join(' ')
           ).join('\n');
-          
+
           setCalendarText(formattedText);
           setIsLoading(false);
         } catch (err) {
@@ -220,13 +316,13 @@ const CalendarAnalyzer = () => {
           setIsLoading(false);
         }
       };
-      
+
       reader.onerror = () => {
         setError('Error al leer el archivo');
         setFileName('');
         setIsLoading(false);
       };
-      
+
       reader.readAsArrayBuffer(file);
     } catch (err) {
       setError(`Error al cargar archivo: ${err.message}`);
@@ -249,18 +345,48 @@ const CalendarAnalyzer = () => {
 
   const analysis = useMemo(() => {
     if (calendarData.length === 0) return {};
-    
+
+    // Parse holidays
+    const holidayDates = parseHolidays(holidays);
+
     const workers = {};
-    
+
     calendarData.forEach(dayData => {
+      // Usar el día de la semana calculado desde la posición de columna
+      const dayOfWeek = dayData.dayOfWeek;
+
+      // Crear fecha para verificar festivos
       const date = new Date(dayData.year, dayData.month - 1, dayData.day);
-      const dayOfWeek = date.getDay();
-      
-      const isFriday = dayOfWeek === 5;
-      const isSaturday = dayOfWeek === 6;
-      const isSunday = dayOfWeek === 0;
+
+      // Check if this date is a holiday
+      const isHoliday = holidayDates.some(h => isSameDay(h, date));
+
+      // Check if tomorrow is a holiday
+      const nextDay = getNextDay(date);
+      const isDayBeforeHoliday = holidayDates.some(h => isSameDay(h, nextDay));
+
+      let isFriday = dayOfWeek === 5;
+      let isSaturday = dayOfWeek === 6;
+      let isSunday = dayOfWeek === 0;
+
+      // Apply holiday rules:
+      // 1. If it's a holiday, treat as Sunday
+      // 2. If it's the day before a holiday AND it's a weekday (Mon-Thu), treat as Friday
+      //    (Don't change Fri, Sat, Sun even if they're before a holiday)
+      if (isHoliday) {
+        isSunday = true;
+        // If holiday falls on Friday, don't double count
+        if (dayOfWeek !== 5) {
+          isFriday = false;
+        }
+      } else if (isDayBeforeHoliday && dayOfWeek >= 1 && dayOfWeek <= 4) {
+        // Day before holiday counts as Friday ONLY if it's Monday-Thursday
+        // Don't change Friday, Saturday, or Sunday
+        isFriday = true;
+      }
+
       const isWeekend = isFriday || isSaturday || isSunday;
-      
+
       dayData.workers.forEach((worker, position) => {
         if (!workers[worker]) {
           workers[worker] = {
@@ -284,34 +410,74 @@ const CalendarAnalyzer = () => {
             november: 0
           };
         }
-        
+
         workers[worker].total++;
         if (isFriday) workers[worker].friday++;
         if (isSaturday) workers[worker].saturday++;
         if (isSunday) workers[worker].sunday++;
         if (isWeekend) workers[worker].weekend++;
         if (position === 3) workers[worker].lastPosition++;
-        
-        const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
-                           'july', 'august', 'september', 'october', 'november', 'december'];
+
+        const monthNames = ['january', 'february', 'march', 'april', 'may', 'june',
+          'july', 'august', 'september', 'october', 'november', 'december'];
         const monthKey = monthNames[dayData.month - 1];
         if (monthKey) workers[worker][monthKey]++;
       });
     });
-    
+
     return workers;
+  }, [calendarData, holidays]);
+
+  // Validar turnos consecutivos
+  const validationWarnings = useMemo(() => {
+    if (calendarData.length < 2) return [];
+
+    const warnings = [];
+
+    for (let i = 0; i < calendarData.length - 1; i++) {
+      const currentDay = calendarData[i];
+      const nextDay = calendarData[i + 1];
+
+      // Encontrar trabajadores que están en ambos días
+      const consecutiveWorkers = currentDay.workers.filter(worker =>
+        nextDay.workers.includes(worker)
+      );
+
+      // Eliminar duplicados (si un trabajador aparece 2 veces el mismo día)
+      const uniqueConsecutive = [...new Set(consecutiveWorkers)];
+
+      uniqueConsecutive.forEach(worker => {
+        // Formatear fechas para el mensaje
+        const date1 = new Date(currentDay.year, currentDay.month - 1, currentDay.day);
+        const date2 = new Date(nextDay.year, nextDay.month - 1, nextDay.day);
+
+        const options = { weekday: 'long', day: 'numeric', month: 'numeric' };
+        const dateStr1 = date1.toLocaleDateString('es-ES', options);
+        const dateStr2 = date2.toLocaleDateString('es-ES', options);
+
+        warnings.push({
+          worker,
+          dayIndex: i,
+          message: `${worker} tiene guardia consecutiva el ${dateStr1} y el ${dateStr2}`
+        });
+      });
+    }
+
+    return warnings;
   }, [calendarData]);
 
   const sortedWorkers = useMemo(() => {
     const workerArray = Object.entries(analysis).map(([name, stats]) => ({
       name,
       ...stats,
-      weekendPercentage: stats.total > 0 ? ((stats.weekend / stats.total) * 100).toFixed(1) : '0.0'
+      weekendPercentage: stats.total > 0 ? ((stats.weekend / stats.total) * 100).toFixed(1) : '0.0',
+      rosellPercentage: stats.total > 0 ? ((stats.lastPosition / stats.total) * 100).toFixed(1) : '0.0'
     }));
-    
+
     return workerArray.sort((a, b) => {
       if (sortBy === 'name') return a.name.localeCompare(b.name);
       if (sortBy === 'weekendPercentage') return parseFloat(b.weekendPercentage) - parseFloat(a.weekendPercentage);
+      if (sortBy === 'rosellPercentage') return parseFloat(b.rosellPercentage) - parseFloat(a.rosellPercentage);
       return b[sortBy] - a[sortBy];
     });
   }, [analysis, sortBy]);
@@ -332,16 +498,16 @@ const CalendarAnalyzer = () => {
   };
 
   const handleExportCSV = () => {
-  let csv = 'Médico,Total,Viernes,Sábado,Domingo,% Fin de Semana,Rosell\n';
+    let csv = 'Médico,Total,Viernes,Sábado,Domingo,% Fin de Semana,Rosell\n';
     sortedWorkers.forEach(worker => {
       csv += `"${worker.name}",${worker.total},${worker.friday},${worker.saturday},${worker.sunday},${worker.weekendPercentage},${worker.lastPosition}\n`;
     });
-    
+
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-  a.download = `analisis_guardias_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `analisis_guardias_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -395,21 +561,21 @@ const CalendarAnalyzer = () => {
       }
 
       const blob = await response.blob();
-      
+
       // Verificar que el blob sea realmente un PDF
       if (blob.type !== 'application/pdf' && !blob.type.startsWith('application/pdf')) {
         const text = await blob.text();
         console.error('Response no es PDF:', text.substring(0, 200));
         throw new Error('La respuesta no es un PDF válido');
       }
-      
+
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `analisis_guardias_${new Date().toISOString().split('T')[0]}.pdf`;
       a.click();
       window.URL.revokeObjectURL(url);
-      
+
       alert('PDF descargado correctamente');
     } catch (error) {
       console.error('Error exporting PDF:', error);
@@ -503,11 +669,27 @@ const CalendarAnalyzer = () => {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Festivos (opcional, formato: DD-MM-YYYY, separados por comas)
+                </label>
+                <input
+                  type="text"
+                  value={holidays}
+                  onChange={(e) => setHolidays(e.target.value)}
+                  placeholder="25-12-2025, 01-01-2026, 06-01-2026"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Los festivos se contarán como Domingo. El día previo al festivo se contará como Viernes.
+                </p>
+              </div>
+
               <div className="border-2 border-dashed border-indigo-300 rounded-lg p-6 bg-indigo-50">
                 <label className="block text-sm font-semibold text-gray-700 mb-4">
                   Cargar archivo o ingresar texto
                 </label>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-2">
@@ -520,7 +702,7 @@ const CalendarAnalyzer = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm cursor-pointer hover:bg-gray-50"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-2">
                       Cargar archivo Excel
@@ -610,7 +792,30 @@ const CalendarAnalyzer = () => {
             </button>
           </div>
         </div>
-        
+
+
+
+        {validationWarnings.length > 0 && (
+          <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg">
+            <div className="flex items-center mb-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-500 mr-2" />
+              <h3 className="text-lg font-medium text-yellow-800">
+                Alertas de Validación ({validationWarnings.length})
+              </h3>
+            </div>
+            <p className="text-sm text-yellow-700 mb-2">
+              Se han detectado trabajadores con guardias en días consecutivos:
+            </p>
+            <ul className="list-disc list-inside space-y-1">
+              {validationWarnings.map((warning, idx) => (
+                <li key={idx} className="text-sm text-yellow-800">
+                  <span className="font-semibold">{warning.worker}</span>: {warning.message.split(warning.worker)[1]}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-indigo-50 p-4 rounded-lg">
             <p className="text-sm text-indigo-600 font-semibold">Total de Días</p>
@@ -633,8 +838,8 @@ const CalendarAnalyzer = () => {
         <div className="flex gap-4 flex-wrap mb-6">
           <div>
             <label className="mr-3 font-semibold text-gray-700">Vista:</label>
-            <select 
-              value={view} 
+            <select
+              value={view}
               onChange={(e) => setView(e.target.value)}
               className="border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500"
             >
@@ -644,8 +849,8 @@ const CalendarAnalyzer = () => {
           </div>
           <div>
             <label className="mr-3 font-semibold text-gray-700">Ordenar por:</label>
-            <select 
-              value={sortBy} 
+            <select
+              value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               className="border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500"
             >
@@ -656,6 +861,7 @@ const CalendarAnalyzer = () => {
               <option value="saturday">Sábados</option>
               <option value="sunday">Domingos</option>
               <option value="lastPosition">Rosell</option>
+              <option value="rosellPercentage">% Rosell</option>
               <option value="name">Nombre</option>
             </select>
           </div>
@@ -710,63 +916,81 @@ const CalendarAnalyzer = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-full bg-white border border-gray-300 text-sm shadow-sm">
-            <thead className="bg-gray-100">
-              <tr>
-                {view === 'general' ? (
-                  <>
-                    <th className="border px-2 py-2 text-left sticky left-0 bg-gray-100">Médico</th>
-                    <th className="border px-2 py-2 text-center">Total</th>
-                    <th className="border px-2 py-2 text-center">Vie</th>
-                    <th className="border px-2 py-2 text-center">Sáb</th>
-                    <th className="border px-2 py-2 text-center">Dom</th>
-                    <th className="border px-2 py-2 text-center">% F.S.</th>
-                    <th className="border px-2 py-2 text-center">Últ.Pos</th>
-                  </>
-                ) : (
-                  <>
-                    <th className="border px-2 py-2 text-left sticky left-0 bg-gray-100">Médico</th>
+          <div className="overflow-x-auto">
+            <table className="min-w-full table-auto border-collapse text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="border px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10 w-40">
+                    Médico
+                  </th>
+                  <th className="border px-4 py-2 text-center font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+                    Total
+                  </th>
+                  {monthsWithShifts.map(month => (
+                    <th key={month.key} className="border px-4 py-2 text-center font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+                      {month.key}
+                    </th>
+                  ))}
+                  <th className="border px-4 py-2 text-center font-medium text-gray-500 uppercase tracking-wider text-indigo-600 bg-indigo-50">
+                    Vie
+                  </th>
+                  <th className="border px-4 py-2 text-center font-medium text-gray-500 uppercase tracking-wider text-indigo-600 bg-indigo-50">
+                    Sáb
+                  </th>
+                  <th className="border px-4 py-2 text-center font-medium text-gray-500 uppercase tracking-wider text-indigo-600 bg-indigo-50">
+                    Dom
+                  </th>
+                  <th className="border px-4 py-2 text-center font-medium text-gray-500 uppercase tracking-wider text-indigo-600 bg-indigo-50">
+                    % F.S.
+                  </th>
+                  <th className="border px-4 py-2 text-center font-medium text-gray-500 uppercase tracking-wider text-purple-600 bg-purple-50">
+                    Rosell
+                  </th>
+                  <th className="border px-4 py-2 text-center font-medium text-gray-500 uppercase tracking-wider text-purple-600 bg-purple-50">
+                    % Rosell
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {sortedWorkers.map((worker, idx) => (
+                  <tr key={worker.name} className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white hover:bg-gray-100'}>
+                    <td className="border px-4 py-2 font-semibold text-gray-900 sticky left-0 bg-inherit w-40">
+                      {worker.name}
+                    </td>
+                    <td className="border px-4 py-2 text-center font-bold text-gray-900">
+                      {worker.total}
+                    </td>
                     {monthsWithShifts.map(month => (
-                      <th key={month.key} className="border px-2 py-2 text-center">{month.key}</th>
+                      <td key={month.key} className="border px-4 py-2 text-center text-gray-600">
+                        {worker[month.value] || 0}
+                      </td>
                     ))}
-                    <th className="border px-2 py-2 text-center">Total</th>
-                  </>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {view === 'general' ? (
-                sortedWorkers.map((worker, idx) => (
-                  <tr key={worker.name} className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                    <td className="border px-2 py-2 font-semibold sticky left-0 bg-inherit">{worker.name}</td>
-                    <td className="border px-2 py-2 text-center font-bold">{worker.total}</td>
-                    <td className="border px-2 py-2 text-center">{worker.friday}</td>
-                    <td className="border px-2 py-2 text-center">{worker.saturday}</td>
-                    <td className="border px-2 py-2 text-center">{worker.sunday}</td>
-                    <td className="border px-2 py-2 text-center font-semibold">{worker.weekendPercentage}%</td>
-                    <td className="border px-2 py-2 text-center">{worker.lastPosition}</td>
+                    <td className="border px-4 py-2 text-center text-indigo-600 font-medium">
+                      {worker.friday}
+                    </td>
+                    <td className="border px-4 py-2 text-center text-indigo-600 font-medium">
+                      {worker.saturday}
+                    </td>
+                    <td className="border px-4 py-2 text-center text-indigo-600 font-medium">
+                      {worker.sunday}
+                    </td>
+                    <td className="border px-4 py-2 text-center font-bold text-indigo-700 bg-indigo-50">
+                      {worker.weekendPercentage}%
+                    </td>
+                    <td className="border px-4 py-2 text-center text-purple-600 font-medium">
+                      {worker.lastPosition}
+                    </td>
+                    <td className="border px-4 py-2 text-center font-bold text-purple-700 bg-purple-50">
+                      {worker.rosellPercentage}%
+                    </td>
                   </tr>
-                ))
-              ) : (
-                monthlyChartData.map((worker, idx) => {
-                  const monthlyTotal = monthsWithShifts.reduce((sum, month) => sum + (worker[month.key] || 0), 0);
-                  return (
-                    <tr key={worker.name} className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                      <td className="border px-2 py-2 font-semibold sticky left-0 bg-inherit">{worker.name}</td>
-                      {monthsWithShifts.map(month => (
-                        <td key={month.key} className="border px-2 py-2 text-center">{worker[month.key] || 0}</td>
-                      ))}
-                      <td className="border px-2 py-2 text-center font-bold">{monthlyTotal}</td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 };
-
 export default CalendarAnalyzer;
